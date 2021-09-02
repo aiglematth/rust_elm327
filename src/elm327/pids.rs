@@ -1,25 +1,12 @@
 // Uses
-
-// Types
-pub type ModLen = usize;
-pub type PidLen = usize;
+use crate::elm327::decoder::*;
+use crate::elm327::types::*;
 
 // Enums
 #[derive(Debug, Clone)]
 pub enum ResultSize {
     Range(usize, usize),
     Value(usize)
-}
-
-#[derive(Debug, Clone)]
-pub enum FuelSystem {
-    MotorOff,
-    OpenLoopInsufficientEngineTemperature,
-    ClosedLoopUsingOxygenSensorFeedback,
-    OpenLoopEngineLoadOrFuelCutDueToDeceleration,
-    OpenLoopSystemFailure,
-    ClosedLoopFaultFeedbackSystem,
-    Unknow
 }
 
 // Définission du format d'un PID
@@ -67,12 +54,7 @@ impl Pid for AvailablePids20 {
     fn max(&self)  -> Option<Self::Output>  { None }
     fn unit(&self) -> Option<&'static str> { None }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        let     base           : u32         = 2u32.pow(31);
-        let mut available_pids : Vec<PidLen> = vec![];
-        for offset in 0..=31 {
-            if base>>offset & input != 0 { available_pids.push(offset+1); }
-        }
-        available_pids
+        decode_available_pids(input, 0)
     }
 }
 
@@ -110,19 +92,7 @@ impl Pid for FreezeDTC {
 
 pub struct FuelSystemStatus;
 impl FuelSystemStatus { 
-    pub fn new() -> Self { FuelSystemStatus } 
-    fn interpret_one_byte(&self, b: u8) -> FuelSystem {
-        match b {
-            0  => FuelSystem::MotorOff,
-            1  => FuelSystem::OpenLoopInsufficientEngineTemperature,
-            2  => FuelSystem::ClosedLoopUsingOxygenSensorFeedback,
-            4  => FuelSystem::OpenLoopEngineLoadOrFuelCutDueToDeceleration,
-            8  => FuelSystem::OpenLoopSystemFailure,
-            16 => FuelSystem::ClosedLoopFaultFeedbackSystem,
-            _  => FuelSystem::Unknow
-        }
-    }
-}
+    pub fn new() -> Self { FuelSystemStatus } }
 impl Pid for FuelSystemStatus {
     type Input  = u16;
     type Output = (FuelSystem, FuelSystem);
@@ -134,10 +104,7 @@ impl Pid for FuelSystemStatus {
     fn max(&self)  -> Option<Self::Output>  { None }
     fn unit(&self) -> Option<&'static str> { None }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        (
-            self.interpret_one_byte((input & 0xff) as u8),
-            self.interpret_one_byte((input >> 8) as u8)            
-        )
+        decode_fuel_system(input)
     }
 }
 
@@ -171,7 +138,7 @@ impl Pid for EngineCoolantTemperature {
     fn max(&self)  -> Option<Self::Output>  { Some(215) }
     fn unit(&self) -> Option<&'static str> { Some("°C") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as i16 - 40
+        decode_celsius(input)
     }
 }
 
@@ -341,6 +308,6 @@ impl Pid for IntakeAirTemperature {
     fn max(&self)  -> Option<Self::Output>  { Some(215) }
     fn unit(&self) -> Option<&'static str> { Some("°C") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as i16 - 40
+        decode_celsius(input)
     }
 }
