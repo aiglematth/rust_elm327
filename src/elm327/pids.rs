@@ -121,7 +121,7 @@ impl Pid for EngineLoad {
     fn max(&self)  -> Option<Self::Output>  { Some(100.0) }
     fn unit(&self) -> Option<&'static str> { Some("%") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 2.55
+        decode_percent(input)
     }
 }
 
@@ -155,7 +155,7 @@ impl Pid for ShortTermFuelTrim1 {
     fn max(&self)  -> Option<Self::Output>  { Some(99.2) }
     fn unit(&self) -> Option<&'static str> { Some("%") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 1.28 - 100.0
+        decode_fuel_trim(input)
     }
 }
 
@@ -172,7 +172,7 @@ impl Pid for LongTermFuelTrim1 {
     fn max(&self)  -> Option<Self::Output>  { Some(99.2) }
     fn unit(&self) -> Option<&'static str> { Some("%") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 1.28 - 100.0
+        decode_fuel_trim(input)
     }
 }
 
@@ -189,7 +189,7 @@ impl Pid for ShortTermFuelTrim2 {
     fn max(&self)  -> Option<Self::Output>  { Some(99.2) }
     fn unit(&self) -> Option<&'static str> { Some("%") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 1.28 - 100.0
+        decode_fuel_trim(input)
     }
 }
 
@@ -206,7 +206,7 @@ impl Pid for LongTermFuelTrim2 {
     fn max(&self)  -> Option<Self::Output>  { Some(99.2) }
     fn unit(&self) -> Option<&'static str> { Some("%") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 1.28 - 100.0
+        decode_fuel_trim(input)
     }
 }
 
@@ -257,7 +257,7 @@ impl Pid for EngineSpeed {
     fn max(&self)  -> Option<Self::Output>  { Some(16383.75) }
     fn unit(&self) -> Option<&'static str> { Some("rpm") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        ( ((input>>8)*256) + (input&0xff) ) as f64 / 4.0
+        decode_rpm(input)
     }
 }
 
@@ -291,7 +291,7 @@ impl Pid for TimingAdvance {
     fn max(&self)  -> Option<Self::Output>  { Some(63.5) }
     fn unit(&self) -> Option<&'static str> { Some("°before TDC") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
-        input as f64 / 2.0 - 64.0
+        decode_timing_advance(input)
     }
 }
 
@@ -309,5 +309,262 @@ impl Pid for IntakeAirTemperature {
     fn unit(&self) -> Option<&'static str> { Some("°C") }
     fn interpret_result(&self, input: Self::Input) -> Self::Output {
         decode_celsius(input)
+    }
+}
+
+pub struct MAFSensor;
+impl MAFSensor { pub fn new() -> Self { MAFSensor } }
+impl Pid for MAFSensor {
+    type Input  = u16;
+    type Output = f64;
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x10 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Débit d'air du capteur de débit d'air massique (MAF)" }
+    fn min(&self)  -> Option<Self::Output>  { Some(0.0) }
+    fn max(&self)  -> Option<Self::Output>  { Some(655.35) }
+    fn unit(&self) -> Option<&'static str> { Some("grams/sec") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_maf(input)
+    }
+}
+
+pub struct ThrottlePosition;
+impl ThrottlePosition { pub fn new() -> Self { ThrottlePosition } }
+impl Pid for ThrottlePosition {
+    type Input  = u8;
+    type Output = f64;
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x11 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "Position du papillon" }
+    fn min(&self)  -> Option<Self::Output>  { Some(0.0) }
+    fn max(&self)  -> Option<Self::Output>  { Some(100.0) }
+    fn unit(&self) -> Option<&'static str> { Some("%") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_percent(input)
+    }
+}
+
+pub struct CommendedSecondaryAirStatus;
+impl CommendedSecondaryAirStatus { pub fn new() -> Self { CommendedSecondaryAirStatus } }
+impl Pid for CommendedSecondaryAirStatus {
+    type Input  = u8;
+    type Output = AirStatus;
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x12 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "Statut aérien secondaire commandé" }
+    fn min(&self)  -> Option<Self::Output>  { None }
+    fn max(&self)  -> Option<Self::Output>  { None }
+    fn unit(&self) -> Option<&'static str> { None }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_air_status(input)
+    }
+}
+
+pub struct OxygenSensorPresent;
+impl OxygenSensorPresent { pub fn new() -> Self { OxygenSensorPresent } }
+impl Pid for OxygenSensorPresent {
+    type Input  = u8;
+    type Output = ();
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x13 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen présents dans les deux banques" }
+    fn min(&self)  -> Option<Self::Output>  { None }
+    fn max(&self)  -> Option<Self::Output>  { None }
+    fn unit(&self) -> Option<&'static str> { None }
+    fn interpret_result(&self, _: Self::Input) -> Self::Output {
+        // TODO
+        ()
+    }
+}
+
+pub struct OxygenSensor1;
+impl OxygenSensor1 { pub fn new() -> Self { OxygenSensor1 } }
+impl Pid for OxygenSensor1 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x14 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 1, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor2;
+impl OxygenSensor2 { pub fn new() -> Self { OxygenSensor2 } }
+impl Pid for OxygenSensor2 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x15 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 2, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor3;
+impl OxygenSensor3 { pub fn new() -> Self { OxygenSensor3 } }
+impl Pid for OxygenSensor3 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x16 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 3, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor4;
+impl OxygenSensor4 { pub fn new() -> Self { OxygenSensor4 } }
+impl Pid for OxygenSensor4 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x17 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 4, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor5;
+impl OxygenSensor5 { pub fn new() -> Self { OxygenSensor5 } }
+impl Pid for OxygenSensor5 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x18 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 5, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor6;
+impl OxygenSensor6 { pub fn new() -> Self { OxygenSensor6 } }
+impl Pid for OxygenSensor6 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x19 }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 6, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor7;
+impl OxygenSensor7 { pub fn new() -> Self { OxygenSensor7 } }
+impl Pid for OxygenSensor7 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x1a }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 7, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct OxygenSensor8;
+impl OxygenSensor8 { pub fn new() -> Self { OxygenSensor8 } }
+impl Pid for OxygenSensor8 {
+    type Input  = u16;
+    type Output = (f64, f64);
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x1b }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x02) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen 8, tension et garniture de carburant à court terme" }
+    fn min(&self)  -> Option<Self::Output>  { Some((0.0, -100.0)) }
+    fn max(&self)  -> Option<Self::Output>  { Some((1.275, 99.2)) }
+    fn unit(&self) -> Option<&'static str> { Some("(volts, %)") }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_oxygen_sensor(input)
+    }
+}
+
+pub struct ObdStandardForThisVehicle;
+impl ObdStandardForThisVehicle { pub fn new() -> Self { ObdStandardForThisVehicle } }
+impl Pid for ObdStandardForThisVehicle {
+    type Input  = u8;
+    type Output = ObdStandard;
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x1c }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "Standard Obd suivi par cette voiture" }
+    fn min(&self)  -> Option<Self::Output>  { Some(ObdStandard::Value(1)) }
+    fn max(&self)  -> Option<Self::Output>  { Some(ObdStandard::Value(250)) }
+    fn unit(&self) -> Option<&'static str> { None }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_obd_standard(input)
+    }
+}
+
+pub struct OxygenSensorPresent4Banks;
+impl OxygenSensorPresent4Banks { pub fn new() -> Self { OxygenSensorPresent4Banks } }
+impl Pid for OxygenSensorPresent4Banks {
+    type Input  = u8;
+    type Output = ();
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x1d }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "Capteurs d'oxygen présents dans les quatres banques" }
+    fn min(&self)  -> Option<Self::Output>  { None }
+    fn max(&self)  -> Option<Self::Output>  { None }
+    fn unit(&self) -> Option<&'static str> { None }
+    fn interpret_result(&self, _: Self::Input) -> Self::Output {
+        // TODO
+        ()
+    }
+}
+
+pub struct AuxiliaryInputStatus;
+impl AuxiliaryInputStatus { pub fn new() -> Self { AuxiliaryInputStatus } }
+impl Pid for AuxiliaryInputStatus {
+    type Input  = u8;
+    type Output = State;
+    fn mode_number(&self) -> ModLen { 0x01 }
+    fn pid_number(&self)  -> PidLen { 0x1e }
+    fn result_size(&self) -> ResultSize { ResultSize::Value(0x01) }
+    fn description(&self) -> &'static str { "État de l'entrée auxiliaire" }
+    fn min(&self)  -> Option<Self::Output>  { None }
+    fn max(&self)  -> Option<Self::Output>  { None }
+    fn unit(&self) -> Option<&'static str> { None }
+    fn interpret_result(&self, input: Self::Input) -> Self::Output {
+        decode_auxiliary_input_status(input)
     }
 }
