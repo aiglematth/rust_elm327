@@ -27,7 +27,7 @@ pub enum AirStatus {
 pub enum ObdStandard {
     Obd2CARB,   ObdEPA, Obd1and2,   Obd1,   NotObdCompliant,    Eobd,   EobdAndObd2,    EobdAndObd, EobdAndObd2AndObd,  Jobd,
     JobdAndObd2,    JobdAndEobd,    JobdAndEobdAndObd2, Emd,    EmdPlus,    HdObdC, HdObd,  WwhObd, HdEobd1,    HdEobd1N,   
-    HdEobd2,    HdEobd2N,   ObdBr1, ObdBr2, Kobd,   Iobd1,  Iobd2,  HdEobd6,    NotAvailableForAssignement, Reserved, Value(u8)
+    HdEobd2,    HdEobd2N,   ObdBr1, ObdBr2, Kobd,   Iobd1,  Iobd2,  HdEobd6,    NotAvailableForAssignement, Reserved, Unknow, Value(u8)
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +138,8 @@ pub fn decode_obd_standard(input: u8) -> ObdStandard {
         32 => ObdStandard::Iobd2,
         33 => ObdStandard::HdEobd6,
         14 ..= 16 | 22 | 27 | 34 ..= 250 => ObdStandard::Reserved,
-        251 ..= 255 => ObdStandard::NotAvailableForAssignement
+        251 ..= 255 => ObdStandard::NotAvailableForAssignement,
+        0 => ObdStandard::Unknow
     }
 }
 
@@ -148,4 +149,35 @@ pub fn decode_auxiliary_input_status(input: u8) -> State {
         1 => State::On,
         _ => State::Unknow
     }
+}
+
+pub fn decode_seconds(input: u16) -> u16 {
+    256*(input>>8) + (input&0xff)
+}
+
+pub fn decode_km(input: u16) -> u16 {
+    256*(input>>8) + (input&0xff)
+}
+
+pub fn decode_fuel_rail_pressure(input: u16) -> f64 {
+    0.079 * (256.0*(input>>8) as f64 + (input&0xff) as f64)
+}
+
+pub fn decode_fuel_rail_gauge_pressure(input: u16) -> u32 {
+    10 * (256*(input>>8) as u32 + (input&0xff) as u32)
+}
+
+pub fn decode_oxygen_sensor_lambda(input: u32) -> (f64, f64) {
+    let a : f64 = (input >> 24) as f64;
+    let b : f64 = ((input >> 16) & 0xff) as f64;
+    let c : f64 = ((input >> 8) & 0xff) as f64;
+    let d : f64 = (input & 0xff) as f64;
+    (
+        (2.0/65536.0) * (256.0*a as f64 + b),
+        (8.0/65536.0) * (256.0*c as f64 + d)
+    )
+}
+
+pub fn decode_egr_error(input: u8) -> f64 {
+    input as f64 / 1.28 - 100.0
 }
